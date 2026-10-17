@@ -90,7 +90,9 @@ class Nvd(Provider):
             if entry.get("lang") == "en":
                 desc = str(entry.get("value", ""))[:500]
                 break
-        refs = [ref["url"] for ref in cve.get("references", [])][:5]
+        refs = [
+            ref.get("url") for ref in cve.get("references", []) if ref.get("url")
+        ][:5]
         cwe = [
             d["value"]
             for w in cve.get("weaknesses", [])

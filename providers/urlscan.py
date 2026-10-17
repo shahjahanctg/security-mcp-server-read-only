@@ -70,14 +70,17 @@ class UrlScan(Provider):
             ((hit.get("verdicts") or {}).get("overall") or {}).get("malicious")
             for hit in hits
         )
-        scores = [hit.get("score", 0) for hit in hits]
+        scores = [hit.get("score") for hit in hits if hit.get("score") is not None]
+        domains = [
+            (hit.get("page") or {}).get("domain")
+            for hit in hits
+            if (hit.get("page") or {}).get("domain")
+        ][:5]
         data = {
             "total": raw.get("total", len(hits)),
             "last_task_time": (hits[0].get("task") or {}).get("time"),
             "top_score": max(scores) if scores else None,
-            "domains": [
-                (hit.get("page") or {}).get("domain") for hit in hits
-            ][:5],
+            "domains": domains,
         }
         verdict, severity = ("malicious", "high") if malicious else ("unknown", "none")
         return ProviderResult(

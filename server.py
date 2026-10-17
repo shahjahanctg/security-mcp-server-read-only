@@ -1,4 +1,5 @@
 import asyncio
+import copy
 from dataclasses import asdict
 
 from fastmcp import FastMCP
@@ -88,7 +89,7 @@ async def investigate(
     key = (tool, normalized, tuple(providers) if providers is not None else None)
     cached = _CACHE.get(key)
     if cached is not None:
-        return cached
+        return copy.deepcopy(cached)
     selected, skipped = for_tool(tool, providers)
     results = await asyncio.gather(
         *(_run_with_limit(provider, normalized) for provider in selected)
@@ -105,7 +106,7 @@ async def investigate(
         "results": [asdict(result) for result in results],
         "retrieved_at": now_iso(),
     }
-    _CACHE.set(key, response)
+    _CACHE.set(key, copy.deepcopy(response))
     return response
 
 

@@ -45,24 +45,15 @@ class AbuseIPDB(Provider):
         if raw.get("not_found"):
             return not_found_result(self.name)
         data = raw.get("data", {}) or {}
-        score = data.get("abuseConfidenceScore", 0)
+        score = data.get("abuseConfidenceScore") or 0
         if score == 0:
             verdict, severity = ("benign", "low")
-        elif 1 <= score <= 24:
+        elif score < 25:
             verdict, severity = ("suspicious", "low")
-        elif 25 <= score <= 74:
+        elif score < 75:
             verdict, severity = ("suspicious", "medium")
-        elif score >= 75:
-            verdict, severity = ("malicious", "high")
         else:
-            if score == 0:
-                verdict, severity = ("benign", "low")
-            elif score > 0 and score < 25:
-                verdict, severity = ("suspicious", "low")
-            elif score < 75:
-                verdict, severity = ("suspicious", "medium")
-            else:
-                verdict, severity = ("malicious", "high")
+            verdict, severity = ("malicious", "high")
         summary = f"Abuse confidence {score}%, {data.get('totalReports', 0)} reports/90d"
         return ProviderResult(
             source=self.name,

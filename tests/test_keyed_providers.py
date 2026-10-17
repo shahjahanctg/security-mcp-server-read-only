@@ -135,6 +135,13 @@ def test_abuseipdb_confidence_cases():
     assert provider.normalize("1.1.1.1", {"data": {"abuseConfidenceScore": 90}}).severity == "high"
 
 
+def test_abuseipdb_none_score_is_benign():
+    result = AbuseIPDB().normalize("1.1.1.1", {"data": {"abuseConfidenceScore": None}})
+    assert result.ok is True
+    assert (result.verdict, result.severity) == ("benign", "low")
+    assert result.summary == "Abuse confidence 0%, 0 reports/90d"
+
+
 def test_virustotal_ip_normalize_cases():
     provider = VirusTotalIP()
     res = provider.normalize("8.8.8.8", VIRUSTOTAL_IP_CANONICAL_RAW)
@@ -188,6 +195,14 @@ def test_shodan_normalize_cases():
     res = provider.normalize("1.1.1.1", {"vulns": {"CVE-1": {}}})
     assert res.severity == "medium"
     assert res.verdict == "unknown"
+
+
+def test_shodan_port_fallbacks():
+    provider = Shodan()
+    assert provider.normalize("1.1.1.1", {"ports": [22, 80]}).data["port"] == 22
+    assert provider.normalize("1.1.1.1", {"ports": [], "port": 8080}).data["port"] == 8080
+    assert provider.normalize("1.1.1.1", {"port": 8080}).data["port"] == 8080
+    assert provider.normalize("1.1.1.1", {}).data["port"] is None
 
 
 def test_available_for_keyed(monkeypatch):

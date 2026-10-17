@@ -75,6 +75,17 @@ async def test_cache_hit_and_distinct_key():
     assert "ipapi" in unfiltered["queried"]
 
 
+async def test_cache_returns_isolated_copy():
+    first = await server.investigate("ip", "1.2.3.4", ["ipapi"])
+    first["results"].clear()
+    first["verdict"] = "tampered"
+
+    second = await server.investigate("ip", "1.2.3.4", ["ipapi"])
+
+    assert second["verdict"] != "tampered"
+    assert second["results"]
+
+
 @pytest.mark.parametrize(
     "tool,value",
     [

@@ -48,20 +48,10 @@ class Shodan(Provider):
             severity = "none"
         verdict = "unknown"
         ports = raw.get("ports")
-        port = None
-        if ports:
-            try:
-                port = (ports or [None])[0] if ports else raw.get("port")
-            except Exception:
-                port = ports[0] if ports else None
-        else:
-            port = raw.get("port")
-        if ports is not None and isinstance(ports, list) and ports:
+        if isinstance(ports, list) and ports:
             port = ports[0]
-        elif raw.get("port") is not None:
-            port = raw.get("port")
         else:
-            port = None
+            port = raw.get("port")
         data = {
             "org": raw.get("org"),
             "port": port,

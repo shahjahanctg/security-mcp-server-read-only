@@ -307,6 +307,47 @@ def test_urlscan_normalize_empty_results():
     }
 
 
+def test_urlscan_normalize_handles_none_score_and_domain():
+    raw = {
+        "total": 2,
+        "results": [
+            {"score": None, "task": {}, "page": {}, "verdicts": {}},
+            {
+                "score": 3,
+                "task": {"time": "2024-06-01T00:00:00.000Z"},
+                "page": {"domain": "good.example"},
+                "verdicts": {"overall": {"malicious": False}},
+            },
+        ],
+    }
+
+    result = UrlScan().normalize("https://x/", raw)
+
+    assert result.ok is True
+    assert result.data["top_score"] == 3
+    assert result.data["domains"] == ["good.example"]
+
+
+def test_nvd_normalize_skips_reference_without_url():
+    raw = {
+        "totalResults": 1,
+        "vulnerabilities": [
+            {
+                "cve": {
+                    "id": "CVE-2024-1234",
+                    "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 5.0}}]},
+                    "references": [{"source": "x"}, {"url": "https://ok.example/a"}],
+                }
+            }
+        ],
+    }
+
+    result = Nvd().normalize("CVE-2024-1234", raw)
+
+    assert result.ok is True
+    assert result.data["references"] == ["https://ok.example/a"]
+
+
 def test_nvd_normalize_canonical():
     result = Nvd().normalize("CVE-2024-1234", NVD_CANONICAL_RAW)
 
