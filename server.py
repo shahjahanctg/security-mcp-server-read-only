@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 
 from core.cache import TTLCache
 from core.ratelimit import RateLimiter
+from core.redact import redact
 from core.schemas import (
     ProviderResult,
     now_iso,
@@ -49,7 +50,7 @@ def _error_result(source: str, error: str) -> ProviderResult:
         severity="unknown",
         summary=f"{source} lookup failed",
         data={},
-        error=error,
+        error=redact(error),
         retrieved_at=now_iso(),
     )
 

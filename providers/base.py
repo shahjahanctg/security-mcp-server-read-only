@@ -2,6 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import final
 
+from core.redact import redact
 from core.schemas import ProviderResult, now_iso
 
 
@@ -66,6 +67,6 @@ class Provider(ABC):
                 severity="unknown",
                 summary=f"{self.name} lookup failed",
                 data={},
-                error=str(e) or type(e).__name__,
+                error=redact(str(e) or type(e).__name__),
                 retrieved_at=now_iso(),
             )
