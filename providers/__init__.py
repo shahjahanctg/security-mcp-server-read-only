@@ -30,18 +30,23 @@ from .abuseipdb import AbuseIPDB
 from .crtsh import CrtSh
 from .dns_records import DnsRecords
 from .greynoise import GreyNoise
+from .internetdb import InternetDb
 from .ipapi import IpApi
+from .ipinfo import IpInfo
 from .mitre_cve import MitreCve
 from .nvd import Nvd
 from .osv import Osv
 from .otx_domain import OtxDomain
+from .otx_ip import OtxIp
 from .rdap import Rdap
+from .reverse_dns import ReverseDns
 from .shodan import Shodan
 from .urlscan import UrlScan
 from .virustotal import VirusTotalIP, VirusTotalURL
 
 PROVIDERS.extend([IpApi(), UrlScan(), Nvd(), MitreCve(), Osv()])
 PROVIDERS.extend([Rdap(), DnsRecords(), CrtSh(), OtxDomain()])
+PROVIDERS.extend([IpInfo(), InternetDb(), ReverseDns(), OtxIp()])
 PROVIDERS.extend(
     [
         AbuseIPDB(),
