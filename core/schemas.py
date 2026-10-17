@@ -30,6 +30,8 @@ def validate_ip(value: str) -> str:
 
 
 def validate_url(value: str) -> str:
+    if "\\" in value:
+        raise ValueError(f"URL must not contain backslashes, got {value!r}")
     parsed = urlparse(value)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"URL scheme must be http or https, got {parsed.scheme!r}")

@@ -108,6 +108,16 @@ def test_validate_url_rejects_missing_netloc():
         validate_url("https:")
 
 
+def test_validate_url_rejects_backslash_authority_bypass():
+    with pytest.raises(ValueError):
+        validate_url("http://127.0.0.1\\@example.com/")
+
+
+def test_validate_url_rejects_backslash_in_host():
+    with pytest.raises(ValueError):
+        validate_url("http://exam\\ple.com/")
+
+
 def test_validate_cve_normalizes_lowercase():
     assert validate_cve("cve-2021-44228") == "CVE-2021-44228"
 
