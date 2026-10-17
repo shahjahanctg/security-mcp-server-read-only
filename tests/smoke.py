@@ -42,6 +42,7 @@ async def _run() -> None:
             names = {tool.name for tool in tools.tools}
             missing = _EXPECTED_TOOLS - names
             assert not missing, f"missing tools: {sorted(missing)}"
+            assert len(names) == 3, f"expected 3 tools, got {len(names)}: {sorted(names)}"
             print(f"tools/list OK: {sorted(names)}")
 
             for name, arguments in _CALLS:

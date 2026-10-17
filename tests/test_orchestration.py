@@ -1,7 +1,23 @@
 import pytest
 
+import providers as providers_pkg
 import server
-from core.schemas import SEVERITIES, VERDICTS
+from core.ratelimit import RateLimiter
+from core.schemas import SEVERITIES, VERDICTS, ProviderResult, now_iso
+from providers.base import RateLimited
+
+
+class _StubProvider:
+    def __init__(self, name, tool, run):
+        self.name = name
+        self.tool = tool
+        self._run = run
+
+    def available(self):
+        return True
+
+    async def run(self, value):
+        return await self._run(value)
 
 _EXPECTED_KEYS = {
     "input",
@@ -77,6 +93,59 @@ async def test_unknown_provider():
     assert response["queried"] == []
     assert {"provider": "nope", "reason": "unknown provider"} in response["skipped"]
     assert response["verdict"] == "unknown"
+
+
+async def test_run_with_limit_retry_exception_caught():
+    server._LIMITERS["flaky"] = RateLimiter(1000.0)
+    calls = {"n": 0}
+
+    async def _run(value):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RateLimited("first attempt")
+        raise RuntimeError("boom on retry")
+
+    provider = _StubProvider("flaky", "ip", _run)
+    result = await server._run_with_limit(provider, "1.2.3.4")
+    assert calls["n"] == 2
+    assert result.ok is False
+    assert result.verdict == "error"
+    assert result.error == "boom on retry"
+
+
+async def test_investigate_survives_provider_retry_exception(monkeypatch):
+    server._LIMITERS["flaky"] = RateLimiter(1000.0)
+    calls = {"n": 0}
+
+    async def _flaky(value):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RateLimited("first attempt")
+        raise RuntimeError("boom on retry")
+
+    async def _good(value):
+        return ProviderResult(
+            source="good",
+            ok=True,
+            verdict="benign",
+            severity="none",
+            summary="good",
+            data={},
+            error=None,
+            retrieved_at=now_iso(),
+        )
+
+    flaky = _StubProvider("flaky", "ip", _flaky)
+    good = _StubProvider("good", "ip", _good)
+    monkeypatch.setattr(providers_pkg, "PROVIDERS", [flaky, good])
+
+    response = await server.investigate("ip", "1.2.3.4", ["flaky", "good"])
+    assert set(response) == _EXPECTED_KEYS
+    assert response["queried"] == ["flaky", "good"]
+    assert response["results"][0]["ok"] is False
+    assert response["results"][0]["error"] == "boom on retry"
+    assert response["results"][1]["ok"] is True
+    assert response["results"][1]["source"] == "good"
 
 
 async def test_lookup_cve_nvd_mock():

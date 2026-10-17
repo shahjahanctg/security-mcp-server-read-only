@@ -40,6 +40,19 @@ _CACHE = TTLCache(ttl=cache_ttl(), maxsize=1000)
 _LIMITERS: dict[str, RateLimiter] = {}
 
 
+def _error_result(source: str, error: str) -> ProviderResult:
+    return ProviderResult(
+        source=source,
+        ok=False,
+        verdict="error",
+        severity="unknown",
+        summary=f"{source} lookup failed",
+        data={},
+        error=error,
+        retrieved_at=now_iso(),
+    )
+
+
 async def _run_with_limit(provider, value: str) -> ProviderResult:
     limiter = _LIMITERS.setdefault(
         provider.name, RateLimiter(_RATE_LIMITS.get(provider.name, 1.0))
@@ -62,17 +75,10 @@ async def _run_with_limit(provider, value: str) -> ProviderResult:
                 error="rate_limited",
                 retrieved_at=now_iso(),
             )
+        except Exception as exc:
+            return _error_result(provider.name, str(exc) or type(exc).__name__)
     except Exception as exc:
-        return ProviderResult(
-            source=provider.name,
-            ok=False,
-            verdict="error",
-            severity="unknown",
-            summary=f"{provider.name} lookup failed",
-            data={},
-            error=str(exc) or type(exc).__name__,
-            retrieved_at=now_iso(),
-        )
+        return _error_result(provider.name, str(exc) or type(exc).__name__)
 
 
 async def investigate(
