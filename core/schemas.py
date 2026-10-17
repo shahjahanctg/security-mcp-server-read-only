@@ -1,6 +1,7 @@
 import ipaddress
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 VERDICTS = ("benign", "suspicious", "malicious", "unknown", "error")
@@ -19,6 +20,10 @@ class ProviderResult:
     data: dict
     error: str | None
     retrieved_at: str
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def validate_ip(value: str) -> str:
