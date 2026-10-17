@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "security": {
+      "type": "local",
+      "command": [".venv/bin/python", "server.py"],
+      "cwd": "security-mcp-server-read-only",
+      "enabled": true,
+      "environment": {
+        "ABUSEIPDB_API_KEY": "{env:ABUSEIPDB_API_KEY}",
+        "VT_API_KEY": "{env:VT_API_KEY}",
+        "GREYNOISE_API_KEY": "{env:GREYNOISE_API_KEY}",
+        "SHODAN_API_KEY": "{env:SHODAN_API_KEY}",
+        "URLSCAN_API_KEY": "{env:URLSCAN_API_KEY}",
+        "NVD_API_KEY": "{env:NVD_API_KEY}"
+      }
+    }
+  }
+}
