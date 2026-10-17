@@ -27,16 +27,21 @@ def for_tool(tool: str, only: list[str] | None) -> tuple[list[Provider], list[di
 
 
 from .abuseipdb import AbuseIPDB
+from .crtsh import CrtSh
+from .dns_records import DnsRecords
 from .greynoise import GreyNoise
 from .ipapi import IpApi
 from .mitre_cve import MitreCve
 from .nvd import Nvd
 from .osv import Osv
+from .otx_domain import OtxDomain
+from .rdap import Rdap
 from .shodan import Shodan
 from .urlscan import UrlScan
 from .virustotal import VirusTotalIP, VirusTotalURL
 
 PROVIDERS.extend([IpApi(), UrlScan(), Nvd(), MitreCve(), Osv()])
+PROVIDERS.extend([Rdap(), DnsRecords(), CrtSh(), OtxDomain()])
 PROVIDERS.extend(
     [
         AbuseIPDB(),
