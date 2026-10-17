@@ -24,3 +24,4 @@ dev = [
 asyncio_mode = "auto"
 pythonpath = ["."]
 markers = ["network: requires live internet access"]
+addopts = "-m 'not network'"
