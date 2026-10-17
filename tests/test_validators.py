@@ -1,6 +1,15 @@
 import pytest
 
-from core.schemas import SEVERITIES, VERDICTS, ProviderResult, validate_cve, validate_ip, validate_url
+from core.schemas import (
+    SEVERITIES,
+    VERDICTS,
+    ProviderResult,
+    validate_cve,
+    validate_domain,
+    validate_hash,
+    validate_ip,
+    validate_url,
+)
 
 
 def test_verdicts_vocabulary():
@@ -134,3 +143,62 @@ def test_validate_cve_rejects_short_year():
 def test_validate_cve_rejects_non_cve():
     with pytest.raises(ValueError):
         validate_cve("not-a-cve")
+
+
+def test_validate_domain_normalizes_case_and_trailing_dot():
+    assert validate_domain("Example.COM.") == "example.com"
+
+
+def test_validate_domain_keeps_multi_label_domain():
+    assert validate_domain("tekvision.com.bd") == "tekvision.com.bd"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "http://example.com",
+        "example.com/path",
+        "exa mple.com",
+        "exam\\ple.com",
+        "localhost",
+        "printer.local",
+        "db.internal",
+        "8.8.8.8",
+        "nodot",
+        "-bad.example.com",
+        "exa_mple.com",
+        "example..com",
+        ("a" * 64) + ".com",
+        ("a." * 127) + "com",
+    ],
+)
+def test_validate_domain_rejects_invalid(value):
+    with pytest.raises(ValueError):
+        validate_domain(value)
+
+
+def test_validate_hash_normalizes_md5_uppercase():
+    assert validate_hash("D41D8CD98F00B204E9800998ECF8427E") == "d41d8cd98f00b204e9800998ecf8427e"
+
+
+def test_validate_hash_accepts_sha1():
+    assert validate_hash("a" * 40) == "a" * 40
+
+
+def test_validate_hash_accepts_sha256():
+    assert validate_hash("B" * 64) == "b" * 64
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "xyz",
+        "d41d8cd98f00b204e9800998ecf8427",
+        "d41d8cd98f00b204e9800998ecf8427e!",
+        "g" * 32,
+    ],
+)
+def test_validate_hash_rejects_invalid(value):
+    with pytest.raises(ValueError):
+        validate_hash(value)
