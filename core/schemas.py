@@ -74,6 +74,12 @@ def validate_domain(value: str) -> str:
     candidate = value.strip().lower().rstrip(".")
     if not candidate:
         raise ValueError(f"invalid domain: {value!r}")
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        pass
+    else:
+        raise ValueError(f"domain must not be an IP literal, got {value!r}")
     for char in ("://", "/", ":", "\\"):
         if char in candidate:
             raise ValueError(f"domain must not contain {char!r}, got {value!r}")
@@ -83,12 +89,6 @@ def validate_domain(value: str) -> str:
         raise ValueError(f"domain must not be localhost, got {value!r}")
     if candidate.endswith(".local") or candidate.endswith(".internal"):
         raise ValueError(f"domain must not end in .local or .internal, got {value!r}")
-    try:
-        ipaddress.ip_address(candidate)
-    except ValueError:
-        pass
-    else:
-        raise ValueError(f"domain must not be an IP literal, got {value!r}")
     if "." not in candidate:
         raise ValueError(f"domain must contain a dot, got {value!r}")
     if len(candidate) > 253:

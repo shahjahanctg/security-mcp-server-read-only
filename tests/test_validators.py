@@ -178,6 +178,12 @@ def test_validate_domain_rejects_invalid(value):
         validate_domain(value)
 
 
+@pytest.mark.parametrize("value", ["2001:db8::1", "8.8.8.8"])
+def test_validate_domain_rejects_ip_literal_with_ip_error(value):
+    with pytest.raises(ValueError, match="IP literal"):
+        validate_domain(value)
+
+
 def test_validate_hash_normalizes_md5_uppercase():
     assert validate_hash("D41D8CD98F00B204E9800998ECF8427E") == "d41d8cd98f00b204e9800998ecf8427e"
 
