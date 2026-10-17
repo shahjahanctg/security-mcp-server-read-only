@@ -26,10 +26,23 @@ def for_tool(tool: str, only: list[str] | None) -> tuple[list[Provider], list[di
     return selected, skipped
 
 
+from .abuseipdb import AbuseIPDB
+from .greynoise import GreyNoise
 from .ipapi import IpApi
 from .mitre_cve import MitreCve
 from .nvd import Nvd
 from .osv import Osv
+from .shodan import Shodan
 from .urlscan import UrlScan
+from .virustotal import VirusTotalIP, VirusTotalURL
 
 PROVIDERS.extend([IpApi(), UrlScan(), Nvd(), MitreCve(), Osv()])
+PROVIDERS.extend(
+    [
+        AbuseIPDB(),
+        VirusTotalIP(),
+        VirusTotalURL(),
+        GreyNoise(),
+        Shodan(),
+    ]
+)
