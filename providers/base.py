@@ -13,6 +13,19 @@ class RateLimited(ProviderError):
     pass
 
 
+def not_found_result(source: str) -> ProviderResult:
+    return ProviderResult(
+        source=source,
+        ok=False,
+        verdict="unknown",
+        severity="unknown",
+        summary=f"{source}: not found",
+        data={},
+        error="not_found",
+        retrieved_at=now_iso(),
+    )
+
+
 class Provider(ABC):
     name: str
     tool: str

@@ -24,3 +24,12 @@ def for_tool(tool: str, only: list[str] | None) -> tuple[list[Provider], list[di
                 {"provider": provider.name, "reason": f"{provider.env_key} not set"}
             )
     return selected, skipped
+
+
+from .ipapi import IpApi
+from .mitre_cve import MitreCve
+from .nvd import Nvd
+from .osv import Osv
+from .urlscan import UrlScan
+
+PROVIDERS.extend([IpApi(), UrlScan(), Nvd(), MitreCve(), Osv()])
