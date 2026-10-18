@@ -40,22 +40,25 @@ from .mitre_cve import MitreCve
 from .nvd import Nvd
 from .osv import Osv
 from .otx_domain import OtxDomain
+from .otx_file import OtxFile
 from .otx_ip import OtxIp
 from .rdap import Rdap
 from .reverse_dns import ReverseDns
 from .shodan import Shodan
 from .urlscan import UrlScan
 from .virustotal import VirusTotalIP, VirusTotalURL
+from .virustotal_file import VirusTotalFile
 
 PROVIDERS.extend([IpApi(), UrlScan(), Nvd(), MitreCve(), Osv()])
 PROVIDERS.extend([Rdap(), DnsRecords(), CrtSh(), OtxDomain()])
-PROVIDERS.extend([IpInfo(), InternetDb(), ReverseDns(), OtxIp()])
+PROVIDERS.extend([IpInfo(), InternetDb(), ReverseDns(), OtxIp(), OtxFile()])
 PROVIDERS.extend([Epss(), CisaKev(), Circl()])
 PROVIDERS.extend(
     [
         AbuseIPDB(),
         VirusTotalIP(),
         VirusTotalURL(),
+        VirusTotalFile(),
         GreyNoise(),
         Shodan(),
     ]
