@@ -7,7 +7,7 @@ A read-only, passive security investigation MCP server exposing exactly five too
 [![Read-only](https://img.shields.io/badge/read--only-yes-green.svg)](https://github.com/shahjahanctg/security-mcp-server-read-only)
 [![Tools](https://img.shields.io/badge/tools-5-blue.svg)](#tools)
 [![Providers](https://img.shields.io/badge/providers-23-orange.svg)](#provider-matrix)
-[![Python](https://img.shields.io/badge/python-3.10%2B-yellow.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.11%2B-yellow.svg)](https://www.python.org/)
 
 ## What you get
 

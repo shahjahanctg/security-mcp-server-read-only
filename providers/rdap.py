@@ -7,17 +7,6 @@ from core.schemas import ProviderResult, now_iso
 
 from .base import Provider, RateLimited, not_found_result
 
-_DATA_KEYS = (
-    "registrar",
-    "created",
-    "expires",
-    "updated",
-    "statuses",
-    "nameservers",
-    "dnssec",
-    "age_days",
-)
-
 
 def _age_days(created: str | None) -> int | None:
     if not created:

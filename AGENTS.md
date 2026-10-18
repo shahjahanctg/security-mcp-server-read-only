@@ -1,7 +1,7 @@
 # AGENTS.md — quick reference for OpenCode sessions
 
 ## Repo structure
-- Entrypoint: `server.py` runs the FastMCP app exposing exactly **three tools**.
+- Entrypoint: `server.py` runs the FastMCP app exposing exactly **five tools**: `check_ip`, `check_url`, `lookup_cve`, `check_domain`, `check_hash`.
 - All outbound calls are **HTTP GET only**; the source contains zero POST/PUT/PATCH/DELETE or mutating verbs. Keyless, offline testing uses `MOCK=1`.
 
 ## Setup (fast)
@@ -36,10 +36,11 @@ npx @modelcontextprotocol/inspector .venv/bin/python server.py
 ```
 
 ## Key conventions
-- **Environment keys**: `ABUSEIPDB_API_KEY`, `VT_API_KEY`, `GREYNOISE_API_KEY`, `SHODAN_API_KEY`, `URLSCAN_API_KEY`, `NVD_API_KEY`. Missing keys → provider is **skipped** and reported in `skipped`.
-- **Provider styles**:
-  - *Keyless* (ipapi, mitre_cve, osv, urlscan) → queried even if their optional key is unset.
-  - *Keyed* (abuseipdb, virustotal_ip, greynoise, shodan, virustotal_url, nvd) → skipped if the env var is missing.
+- **Environment keys**: `ABUSEIPDB_API_KEY`, `VT_API_KEY`, `GREYNOISE_API_KEY`, `SHODAN_API_KEY`, `URLSCAN_API_KEY`, `NVD_API_KEY`, `IPINFO_TOKEN`. Missing keys → provider is **skipped** and reported in `skipped`.
+- **Provider styles** (23 providers):
+  - *Keyless* (ipapi, mitre_cve, osv, rdap, dns, crtsh, otx_domain, internetdb, reverse_dns, otx_ip, epss, cisa_kev, circl, otx_file) → always queried, no key.
+  - *Optional-key keyless* (urlscan, nvd, ipinfo) → always queried; the optional key is used when set.
+  - *Keyed* (abuseipdb, virustotal_ip, virustotal_url, virustotal_file, greynoise, shodan) → skipped if the env var is missing.
 - **Normalization**: Tool results always contain `verdict`, `severity`, `results`, `queried`, `skipped`, `retrieved_at`.
 - **Rate limiting**: Per-provider token-bucket is internally enforced; 429 raises `RateLimited`, not a failure result.
 - **One provider failure does NOT fail the call**; it's reported in results as a failed provider with `ok: false`.
@@ -48,9 +49,9 @@ npx @modelcontextprotocol/inspector .venv/bin/python server.py
 - Use `@pytest.mark.network` for live tests. Always override addopts when running them.
 - In `mock` mode (`MOCK=1`), all providers return canned data from their `mock_raw`.
 - Most providers fetch live only if `MOCK != "1"`.
-- `shodan` is keyless, uses the **InternetDB** passive API (no direct Shodan key needed), runs weekly snapshots, no banners.
+- `internetdb` is keyless (Shodan **InternetDB** passive API, no key needed; weekly snapshots, no banners). `shodan` is keyed (`SHODAN_API_KEY`).
 - `greynoise` and `shodan` block `localhost` / `.local` / private and loopback IPs during SSRF-guarded lookups.
-- `urlscan` and `nvd` providers respect optional key but still are queried keyless when key is unset.
+- `urlscan`, `nvd`, and `ipinfo` providers respect an optional key but are still queried keyless when it is unset.
 
 ## How to wire into OpenCode
 OpenCode config (`opencode.json`):
