@@ -50,16 +50,15 @@ class CisaKev(Provider):
         return {"entry": catalog.get(value)}
 
     def normalize(self, value: str, raw: dict) -> ProviderResult:
-        entry = raw.get("entry")
-        if entry:
+        entry = raw.get("entry") or {}
+        listed = bool(entry)
+        if listed:
             verdict = "malicious"
             severity = "high"
-            listed = True
             summary = f"KEV: {entry.get('vendorProject')} {entry.get('product')}"
         else:
             verdict = "benign"
             severity = "none"
-            listed = False
             summary = "Not in CISA KEV catalog"
         return ProviderResult(
             source=self.name,
@@ -69,14 +68,12 @@ class CisaKev(Provider):
             summary=summary,
             data={
                 "listed": listed,
-                "dateAdded": entry.get("dateAdded") if entry else None,
-                "dueDate": entry.get("dueDate") if entry else None,
-                "knownRansomwareCampaignUse": (
-                    entry.get("knownRansomwareCampaignUse") if entry else None
-                ),
-                "requiredAction": entry.get("requiredAction") if entry else None,
-                "vendorProject": entry.get("vendorProject") if entry else None,
-                "product": entry.get("product") if entry else None,
+                "dateAdded": entry.get("dateAdded"),
+                "dueDate": entry.get("dueDate"),
+                "knownRansomwareCampaignUse": entry.get("knownRansomwareCampaignUse"),
+                "requiredAction": entry.get("requiredAction"),
+                "vendorProject": entry.get("vendorProject"),
+                "product": entry.get("product"),
             },
             error=None,
             retrieved_at=now_iso(),

@@ -173,14 +173,21 @@ def test_epss_normalize_empty_data_is_not_found():
     assert result.error == "not_found"
 
 
-def test_epss_normalize_severity_thresholds():
-    low = Epss().normalize(CVE, {"data": [{"cve": CVE, "epss": "0.2"}]})
-    none = Epss().normalize(CVE, {"data": [{"cve": CVE, "epss": "0.01"}]})
+@pytest.mark.parametrize(
+    ("epss", "severity"),
+    [
+        ("0.97", "medium"),
+        ("0.5", "medium"),
+        ("0.2", "low"),
+        ("0.1", "low"),
+        ("0.01", "none"),
+    ],
+)
+def test_epss_normalize_severity_thresholds(epss, severity):
+    result = Epss().normalize(CVE, {"data": [{"cve": CVE, "epss": epss}]})
 
-    assert low.severity == "low"
-    assert low.verdict == "unknown"
-    assert none.severity == "none"
-    assert none.verdict == "unknown"
+    assert result.verdict == "unknown"
+    assert result.severity == severity
 
 
 def test_epss_normalize_date_falls_back_to_top_level():

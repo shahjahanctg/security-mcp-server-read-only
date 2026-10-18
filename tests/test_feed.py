@@ -38,20 +38,21 @@ async def test_feed_refetches_after_ttl_expiry():
 
 async def test_feed_concurrent_callers_fetch_once():
     cache = FeedCache(ttl=100)
-    calls = []
+    counter = {"n": 0}
 
     async def fetcher():
-        calls.append(1)
-        return "shared"
+        counter["n"] += 1
+        await asyncio.sleep(0)
+        return {"v": counter["n"]}
 
     results = await asyncio.gather(*(cache.get(fetcher) for _ in range(5)))
 
-    assert len(calls) == 1
-    assert results == ["shared"] * 5
+    assert counter["n"] == 1
+    assert all(result == results[0] for result in results)
 
 
 async def test_feed_caches_falsy_values():
-    for falsy in (0, {}, None):
+    for falsy in (0, False, {}, [], None):
         cache = FeedCache(ttl=100)
         calls = []
 
