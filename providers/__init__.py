@@ -46,8 +46,7 @@ from .rdap import Rdap
 from .reverse_dns import ReverseDns
 from .shodan import Shodan
 from .urlscan import UrlScan
-from .virustotal import VirusTotalIP, VirusTotalURL
-from .virustotal_file import VirusTotalFile
+from .virustotal import VirusTotalFile, VirusTotalIP, VirusTotalURL
 
 PROVIDERS.extend([IpApi(), UrlScan(), Nvd(), MitreCve(), Osv()])
 PROVIDERS.extend([Rdap(), DnsRecords(), CrtSh(), OtxDomain()])

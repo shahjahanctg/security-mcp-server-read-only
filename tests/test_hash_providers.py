@@ -4,7 +4,7 @@ import pytest
 from providers import PROVIDERS
 from providers.base import RateLimited
 from providers.otx_file import OtxFile
-from providers.virustotal_file import VirusTotalFile
+from providers.virustotal import VirusTotalFile
 
 
 class FakeResponse:
@@ -32,12 +32,12 @@ class FakeClient:
         return self.response
 
 
-HASH = "eicar.com"
+HASH = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
 
 
 def _patch_vt_client(monkeypatch, response: FakeResponse) -> FakeClient:
     client = FakeClient(response)
-    monkeypatch.setattr("providers.virustotal_file.get_client", lambda: client)
+    monkeypatch.setattr("providers.virustotal.get_client", lambda: client)
     return client
 
 
@@ -81,6 +81,16 @@ def test_virustotal_file_mock_raw_non_empty():
     raw = VirusTotalFile().mock_raw(HASH)
     assert isinstance(raw, dict)
     assert raw
+
+
+def test_virustotal_file_mock_raw_normalizes_without_error():
+    provider = VirusTotalFile()
+
+    result = provider.normalize(HASH, provider.mock_raw(HASH))
+
+    assert result.ok is True
+    assert result.error is None
+    assert result.source == "virustotal_file"
 
 
 def test_virustotal_file_normalize_canonical():
@@ -195,6 +205,16 @@ def test_otx_file_mock_raw_non_empty():
     assert raw
 
 
+def test_otx_file_mock_raw_normalizes_without_error():
+    provider = OtxFile()
+
+    result = provider.normalize(HASH, provider.mock_raw(HASH))
+
+    assert result.ok is True
+    assert result.error is None
+    assert result.source == "otx_file"
+
+
 def test_otx_file_normalize_with_pulses():
     result = OtxFile().normalize(HASH, OTX_FILE_CANONICAL_RAW)
 
@@ -241,7 +261,9 @@ async def test_otx_file_fetch_wraps_general(monkeypatch):
 
     assert result == {"general": payload}
     assert len(client.calls) == 1
-    assert client.calls[0][0].endswith(f"file/{HASH}/general")
+    assert client.calls[0][0] == (
+        f"https://otx.alienvault.com/api/v1/indicators/file/{HASH}/general"
+    )
 
 
 async def test_otx_file_fetch_404_returns_not_found(monkeypatch):
