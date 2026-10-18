@@ -167,6 +167,55 @@ Notes:
 ### Other agents
 For Claude Desktop, Cline, Continue, RooCode, etc., configure this MCP server as a local stdio command pointing to `.venv/bin/python` and `server.py` in this repo.
 
+## Connect any MCP client (HTTP)
+
+Clients that cannot spawn a stdio command (or when you want one shared server for many clients) can connect over streamable HTTP with a bearer API key. stdio remains the default and is unchanged — HTTP mode is opt-in.
+
+### 1. Start the server in HTTP mode
+
+```bash
+MCP_TRANSPORT=http .venv/bin/python server.py
+```
+
+The startup banner prints everything you need:
+
+```
+security MCP — streamable-http
+  url:    http://127.0.0.1:8765/mcp
+  key:    <generated access key>
+  state:  ./.mcp_state.json
+  config: python server.py config --client opencode|claude|cursor|cline|mcp-remote
+```
+
+- `url` is the endpoint clients call; `key` is the access key clients send as `Authorization: Bearer <key>`.
+- The server also writes `./.mcp_state.json` (mode `0600`, gitignored) so the `config` command can read the current URL and key. It is deleted on clean shutdown and never used for authentication.
+
+### 2. Generate client config
+
+While the server is running, in a second terminal:
+
+```bash
+.venv/bin/python server.py config --client <name>   # one client
+.venv/bin/python server.py config --all                 # all five at once
+```
+
+| Client | Config goes into |
+|--------|------------------|
+| `opencode` | `opencode.json` (`mcp.security`) |
+| `claude` | `claude_desktop_config.json` or `.mcp.json` (`mcpServers`) |
+| `cursor` | Cursor MCP settings (`mcpServers`) |
+| `cline` | Cline MCP settings (`mcpServers`; same block for RooCode/Continue) |
+| `mcp-remote` | A command for any stdio-only client: `npx -y mcp-remote "<url>" --header "Authorization: Bearer <key>"` |
+
+If `config` reports the server is not running in HTTP mode, start it as in step 1 first.
+
+### 3. Notes
+
+- **Key lifecycle:** A fresh random key is generated on every HTTP start. Set `MCP_API_KEY=<value>` before starting to pin a stable key across restarts (recommended so client configs keep working).
+- **LAN exposure:** Default bind is `127.0.0.1` (this machine only). To serve other machines on a trusted LAN/VPN, start with `MCP_HOST=0.0.0.0` — only do this behind a firewall you control; the server has no TLS and uses a single shared bearer key.
+- **Provider keys are separate:** The MCP access key above is only for connecting clients. Provider API keys (`ABUSEIPDB_API_KEY`, `VT_API_KEY`, etc.) are still read from the server's own environment and are never sent to clients.
+- **stdio unchanged:** Running `.venv/bin/python server.py` with no `MCP_TRANSPORT` behaves exactly as before, with no HTTP listener and no state file.
+
 ## Agent prompts / copy-paste examples
 
 Try these natural-language prompts with an MCP-enabled agent:
