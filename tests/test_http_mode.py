@@ -19,6 +19,22 @@ def free_port():
     return p
 
 
+async def post_until_ready(client, url, json, headers, attempts=50, delay=0.1):
+    """POST, retrying while the server socket is not yet accepting connections.
+
+    server.py writes .mcp_state.json before mcp.run() binds the listening
+    socket, so the state file appearing does not guarantee the port is open.
+    """
+    err = None
+    for _ in range(attempts):
+        try:
+            return await client.post(url, json=json, headers=headers)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+            err = e
+            await asyncio.sleep(delay)
+    raise err
+
+
 @pytest.mark.asyncio
 async def test_http_auth_401_then_200(tmp_path):
     port = free_port()
@@ -45,7 +61,8 @@ async def test_http_auth_401_then_200(tmp_path):
 
         url = f"http://127.0.0.1:{port}/mcp"
         async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.post(
+            r = await post_until_ready(
+                c,
                 url,
                 json={
                     "jsonrpc": "2.0",
@@ -136,6 +153,20 @@ async def test_state_removed_on_shutdown(tmp_path):
             time.sleep(0.1)
         else:
             raise AssertionError("server did not start")
+
+        # The state file is written before the socket binds; probe until the
+        # server accepts connections so shutdown/cleanup is fully installed.
+        url = f"http://127.0.0.1:{port}/mcp"
+        async with httpx.AsyncClient(timeout=5) as c:
+            await post_until_ready(
+                c,
+                url,
+                json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                },
+            )
     finally:
         proc.terminate()
         try:
