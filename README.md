@@ -218,15 +218,61 @@ If `config` reports the server is not running in HTTP mode, start it as in step 
 
 ## Agent prompts / copy-paste examples
 
-Try these natural-language prompts with an MCP-enabled agent:
+Every prompt below maps directly to one tool: `check_ip`, `check_domain`,
+`lookup_cve`, `check_hash`, or `check_url`. Paste them as-is, or adapt the
+values.
 
-- `"Check 45.124.15.34"`
-- `"Recon example.com"` (domain investigation)
-- `"Look up CVE-2021-44228"`
+### Phishing / email triage
+
+- `"Check the sender IP 45.124.15.34 from this phishing report"`
+- `"Is https://accounts-example-login.com/verify a phishing site?"`
+- `"I got a link to https://bit.ly/3x9Kq2m in an email — check its reputation"`
+- `"Recon login-example-support.com — is this a typosquat of our domain?"`
+
+### Vulnerability management
+
+- `"Look up CVE-2021-44228 and tell me how serious it is"`
+- `"Should we prioritize CVE-2024-3400 this week?"` (uses EPSS + KEV data)
+- `"Check CVE-2023-4863 across all sources"`
+- `"Any of these CVEs worth escalating: CVE-2021-44228, CVE-2024-3400?"`
+
+### Malware / file-hash triage
+
 - `"Check this sha256: 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"`
-- `"Is https://example.com safe?"` (URL reputation)
+- `"Is hash d41d8cd98f00b204e9800998ecf8427e known-bad?"` (md5 works too)
+- `"A user uploaded this file — md5 44d88612fea8a8f36de82e1278abb02f, check it"`
 
-These map directly to the tools: `check_ip`, `check_domain`, `lookup_cve`, `check_hash`, and `check_url`.
+### Domain / brand monitoring
+
+- `"Recon example.com"` (full domain investigation)
+- `"Check if example-secure.co is registered and how old it is"`
+- `"Do a brand check on login-example.com and tell me the verdict"`
+
+### URL / download safety
+
+- `"Is https://example.com/some/path safe to open?"`
+- `"Check this URL before I click: http://192.168.1.50:8080/update.exe"`
+- `"Would you open this download link: https://example.org/getfile?id=92"`
+
+### SOC / log review (batch — agent loops)
+
+- `"Which of these IPs are known-bad: 45.124.15.34, 185.220.101.5, 91.219.236.19?"`
+- `"Check every domain in this suspicious click list: a.com, b.net, c.io"`
+- `"Triage these hashes from the incident report and rank by severity"`
+
+### Best practices for prompt authors
+
+- **One value per call.** Each tool checks exactly one IP/URL/CVE/domain/hash —
+  for lists, ask the agent to check them "one by one and summarize"; it will loop.
+- **Full inputs.** Include the scheme in URLs (`https://…`); hashes can be
+  md5/sha1/sha256 — the tool detects the length.
+- **Let the server pick providers** (default: all applicable) or pin for speed:
+  `check this IP using only abuseipdb and greynoise`.
+- **Read `verdict` with `severity` *and* `skipped` together.** `skipped` tells
+  you which keyed providers were unavailable — never treat an empty result as
+  "clean" without checking coverage.
+- **Safe to run proactively.** The server is read-only (passive GETs only), so
+  agents can check inputs without asking permission first.
 
 ## Verify locally
 
