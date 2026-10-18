@@ -1,6 +1,11 @@
+import argparse
 import asyncio
 import copy
+import os
+import signal
+import sys
 from dataclasses import asdict
+from datetime import datetime
 
 from fastmcp import FastMCP
 
@@ -20,6 +25,8 @@ from core.verdict import roll_up
 from mock import cache_ttl
 from providers import for_tool
 from providers.base import RateLimited
+
+from core import auth, configgen, state
 
 _RATE_LIMITS = {
     "abuseipdb": 0.5,
@@ -161,5 +168,81 @@ async def check_hash(file_hash: str, providers: list[str] | None = None) -> dict
     return await investigate("hash", file_hash, providers)
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="server.py")
+    sub = parser.add_subparsers(dest="command")
+    config_parser = sub.add_parser("config", help="Generate client config from running HTTP server state")
+    config_parser.add_argument("--client", default=None)
+    config_parser.add_argument("--all", action="store_true")
+    parser.add_argument("--transport", default=None)
+
+    args = parser.parse_args()
+
+    if args.command == "config":
+        try:
+            st = state.read_state()
+        except FileNotFoundError:
+            sys.stderr.write("Server isn't running in HTTP mode. Start it: MCP_TRANSPORT=http .venv/bin/python server.py\n")
+            sys.exit(1)
+        if args.all or not args.client:
+            sys.stdout.write(configgen.render_all(st) + "\n")
+            return
+        try:
+            sys.stdout.write(configgen.render_client(args.client, st) + "\n")
+            return
+        except Exception as e:
+            sys.stderr.write(str(e) + "\n")
+            sys.exit(2)
+
+    transport = args.transport or os.getenv("MCP_TRANSPORT") or "stdio"
+    if transport == "stdio":
+        mcp.run()
+        return
+    if transport == "http":
+        host = os.getenv("MCP_HOST", "127.0.0.1")
+        port_str = os.getenv("MCP_PORT", "8765")
+        try:
+            port = int(port_str)
+        except ValueError:
+            port = 8765
+        key = auth.resolve_key()
+        mcp.auth = auth.KeyVerifier(key)
+        url = f"http://{host}:{port}/mcp"
+        st = {
+            "url": url,
+            "key": key,
+            "host": host,
+            "port": port,
+            "transport": "streamable-http",
+            "started_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        try:
+            state.write_state(st)
+        except Exception:
+            pass
+
+        def _cleanup_and_reraise(signum, frame):
+            state.delete_state()
+            signal.signal(signum, signal.SIG_DFL)
+            signal.raise_signal(signum)
+
+        try:
+            signal.signal(signal.SIGTERM, _cleanup_and_reraise)
+        except ValueError:
+            pass
+        print("security MCP — streamable-http")
+        print(f"  url:    {url}")
+        print(f"  key:    {key}")
+        print("  state:  ./.mcp_state.json")
+        print("  config: python server.py config --client opencode|claude|cursor|cline|mcp-remote")
+        try:
+            mcp.run(transport="http", host=host, port=port, path="/mcp")
+        finally:
+            state.delete_state()
+        return
+    sys.stderr.write(f"Unknown transport: {transport}\n")
+    sys.exit(2)
+
+
 if __name__ == "__main__":
-    mcp.run()
+    main()
