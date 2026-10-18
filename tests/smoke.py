@@ -9,12 +9,14 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-_EXPECTED_TOOLS = {"check_ip", "check_url", "lookup_cve"}
+_EXPECTED_TOOLS = {"check_ip", "check_url", "lookup_cve", "check_domain", "check_hash"}
 
 _CALLS = [
     ("check_ip", {"ip": "8.8.8.8"}),
     ("check_url", {"url": "https://example.com/"}),
     ("lookup_cve", {"cve_id": "CVE-2021-44228"}),
+    ("check_domain", {"domain": "example.com"}),
+    ("check_hash", {"file_hash": "d41d8cd98f00b204e9800998ecf8427e"}),
 ]
 
 
@@ -42,7 +44,7 @@ async def _run() -> None:
             names = {tool.name for tool in tools.tools}
             missing = _EXPECTED_TOOLS - names
             assert not missing, f"missing tools: {sorted(missing)}"
-            assert len(names) == 3, f"expected 3 tools, got {len(names)}: {sorted(names)}"
+            assert len(names) == 5, f"expected 5 tools, got {len(names)}: {sorted(names)}"
             print(f"tools/list OK: {sorted(names)}")
 
             for name, arguments in _CALLS:

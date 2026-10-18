@@ -11,6 +11,8 @@ from core.schemas import (
     ProviderResult,
     now_iso,
     validate_cve,
+    validate_domain,
+    validate_hash,
     validate_ip,
     validate_url,
 )
@@ -30,12 +32,27 @@ _RATE_LIMITS = {
     "nvd": 0.8,
     "mitre_cve": 1.0,
     "osv": 1.0,
+    "ipinfo": 1.0,
+    "internetdb": 5.0,
+    "reverse_dns": 5.0,
+    "otx_ip": 0.5,
+    "rdap": 1.0,
+    "dns": 5.0,
+    "crtsh": 0.5,
+    "otx_domain": 0.5,
+    "epss": 1.0,
+    "cisa_kev": 0.1,
+    "circl": 0.5,
+    "virustotal_file": 0.15,
+    "otx_file": 0.5,
 }
 
 _VALIDATORS = {
     "ip": validate_ip,
     "url": validate_url,
     "cve": validate_cve,
+    "domain": validate_domain,
+    "hash": validate_hash,
 }
 
 _CACHE = TTLCache(ttl=cache_ttl(), maxsize=1000)
@@ -130,6 +147,18 @@ async def check_url(url: str, providers: list[str] | None = None) -> dict:
 async def lookup_cve(cve_id: str, providers: list[str] | None = None) -> dict:
     """Read-only CVE vulnerability lookup across configured providers."""
     return await investigate("cve", cve_id, providers)
+
+
+@mcp.tool()
+async def check_domain(domain: str, providers: list[str] | None = None) -> dict:
+    """Read-only domain reputation and registration lookup across configured providers."""
+    return await investigate("domain", domain, providers)
+
+
+@mcp.tool()
+async def check_hash(file_hash: str, providers: list[str] | None = None) -> dict:
+    """Read-only file hash reputation lookup across configured providers."""
+    return await investigate("hash", file_hash, providers)
 
 
 if __name__ == "__main__":

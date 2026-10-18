@@ -159,6 +159,69 @@ async def test_investigate_survives_provider_retry_exception(monkeypatch):
     assert response["results"][1]["source"] == "good"
 
 
+async def test_investigate_domain_shape():
+    response = await server.investigate("domain", "example.com", ["dns"])
+    assert set(response) == _EXPECTED_KEYS
+    assert response["input"] == "example.com"
+    assert response["type"] == "domain"
+    assert response["queried"] == ["dns"]
+    assert response["skipped"] == []
+    assert response["results"][0]["source"] == "dns"
+    assert response["results"][0]["ok"] is True
+    assert response["verdict"] in VERDICTS
+    assert response["severity"] in SEVERITIES
+
+
+async def test_investigate_hash_shape():
+    response = await server.investigate(
+        "hash", "d41d8cd98f00b204e9800998ecf8427e", ["otx_file"]
+    )
+    assert set(response) == _EXPECTED_KEYS
+    assert response["input"] == "d41d8cd98f00b204e9800998ecf8427e"
+    assert response["type"] == "hash"
+    assert response["queried"] == ["otx_file"]
+    assert response["results"][0]["source"] == "otx_file"
+    assert response["verdict"] in VERDICTS
+    assert response["severity"] in SEVERITIES
+
+
+async def test_invalid_domain_and_hash_raise_value_error():
+    with pytest.raises(ValueError):
+        await server.investigate("domain", "not a domain!", None)
+    with pytest.raises(ValueError):
+        await server.investigate("hash", "xyz", None)
+
+
+async def test_cache_key_separates_domain_and_hash():
+    domain_response = await server.investigate("domain", "example.com", None)
+    assert domain_response["type"] == "domain"
+    assert ("domain", "example.com", None) in server._CACHE._entries
+
+    hash_response = await server.investigate(
+        "hash", "d41d8cd98f00b204e9800998ecf8427e", None
+    )
+    assert hash_response["type"] == "hash"
+    assert hash_response["queried"]
+    assert (
+        "hash",
+        "d41d8cd98f00b204e9800998ecf8427e",
+        None,
+    ) in server._CACHE._entries
+    assert ("hash", "example.com", None) not in server._CACHE._entries
+    assert ("domain", "d41d8cd98f00b204e9800998ecf8427e", None) not in (
+        server._CACHE._entries
+    )
+
+
+async def test_check_domain_and_check_hash_registered_as_tools():
+    assert callable(server.check_domain)
+    assert callable(server.check_hash)
+    names = [tool.name for tool in await server.mcp.list_tools()]
+    assert len(names) == 5, f"expected 5 tools, got {names}"
+    assert names[:3] == ["check_ip", "check_url", "lookup_cve"]
+    assert names[3:5] == ["check_domain", "check_hash"]
+
+
 async def test_lookup_cve_nvd_mock():
     response = await server.lookup_cve("CVE-2021-44228", ["nvd"])
     assert response["type"] == "cve"
