@@ -1,22 +1,50 @@
 # Security MCP Server (read-only)
 
-A read-only security investigation MCP server exposing exactly three tools (`check_ip`, `check_url`, `lookup_cve`) to any MCP-compatible agent over stdio.
+A read-only, passive security investigation MCP server exposing exactly five tools to any MCP-compatible agent over stdio. Fast, reproducible lookups across IP, URL, domain, CVE, and file hashes with transparent results from multiple providers.
+
+> Passive by design. No active scanning. No mutating API calls. No data submission.
+
+[![Read-only](https://img.shields.io/badge/read--only-yes-green.svg)](https://github.com/shahjahanctg/security-mcp-server-read-only)
+[![Tools](https://img.shields.io/badge/tools-5-blue.svg)](#tools)
+[![Providers](https://img.shields.io/badge/providers-23-orange.svg)](#provider-matrix)
+[![Python](https://img.shields.io/badge/python-3.10%2B-yellow.svg)](https://www.python.org/)
+
+## What you get
+
+- **IP reputation & abuse history**: Cross-check multiple sources for abuse confidence, reports, and known malicious activity.
+- **Geolocation & ASN**: Get location, organization, ISP, and ASN context for IPs.
+- **Passive open ports & service fingerprints**: Leverage Shodan InternetDB for historical/passive service exposure data (no active scanning).
+- **Domain intelligence**: RDAP registration details, DNS records, subdomain discovery via Certificate Transparency (crt.sh), and passive DNS/OSINT signals.
+- **Reverse DNS**: Resolve PTR records for IP addresses.
+- **URL reputation**: Check URLs against multiple reputation providers (SSRF-guarded to prevent local/private targets).
+- **CVE intelligence**: Get CVE descriptions, severity, exploit probability (EPSS), and CISA Known Exploited Vulnerabilities (KEV) status.
+- **File hash reputation**: Look up SHA256 hashes against reputation providers.
+- **Transparent consensus**: Every response includes `verdict`, `severity`, `queried`, `skipped`, and per-provider results with retrieval timestamps.
 
 ## Read-only guarantee
 
-All three tools are strict lookups: every outbound call is an HTTP **GET**. There is no scan submission, no task/queue creation, and no write or mutating API call anywhere in the tree — the source contains zero mutating-verb call sites (no `httpx` POST/PUT/PATCH/DELETE, no `requests` dependency at all; `httpx` only). Google Safe Browsing was explicitly dropped from the provider set because its `threatMatches:find` endpoint is POST-only.
+All five tools perform strict lookups. Every outbound call is an **HTTP GET only** — there are **zero POST, PUT, PATCH, DELETE**, or any other mutating API calls anywhere in the codebase. 
+- No `requests` dependency; only `httpx` is used for HTTP calls.
+- No scan submission, no task/queue creation, no writes.
+- **Passive only — no active scanning, no OS fingerprinting.**
+- SSRF protection: URL lookups reject localhost, `.local`, `.internal`, and private/loopback/link-local IP targets.
+- API keys are read from environment only and are never logged.
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
-| `check_ip(ip, providers=None)` | IP reputation, abuse reports, and geolocation |
-| `check_url(url, providers=None)` | URL/reputation lookup (SSRF-guarded: rejects localhost, `.local`, `.internal`, private/loopback/link-local IPs) |
-| `lookup_cve(cve_id, providers=None)` | CVE severity/description lookup (normalized to upper-case `CVE-YYYY-NNNN+`) |
+| `check_ip(ip, providers=None)` | IP reputation, abuse reports, geolocation, ASN, passive service data, and reverse DNS across IP-focused providers. |
+| `check_url(url, providers=None)` | URL reputation lookups (SSRF-guarded). Rejects localhost, `.local`, `.internal`, private/loopback/link-local IPs. |
+| `lookup_cve(cve_id, providers=None)` | CVE severity, description, EPSS exploit probability, and CISA KEV status. Normalizes to `CVE-YYYY-NNNN+`. |
+| `check_domain(domain, providers=None)` | Domain intelligence: RDAP registration, DNS records, subdomains via crt.sh CT logs, and OTX passive signals. |
+| `check_hash(file_hash, providers=None)` | File hash reputation lookup (SHA256). |
 
 `providers` is an optional allow-list of provider names; omit it to query every available provider for that tool.
 
-All tools return the same normalized shape:
+## Normalized response
+
+All tools return the same normalized shape for consistency:
 
 ```json
 {
@@ -43,9 +71,11 @@ All tools return the same normalized shape:
 }
 ```
 
-Vocabularies: `verdict` ∈ `benign|suspicious|malicious|unknown|error`; `severity` ∈ `none|low|medium|high|critical|unknown`.
+**Vocabularies:** `verdict` ∈ `benign|suspicious|malicious|unknown|error`; `severity` ∈ `none|low|medium|high|critical|unknown`.
 
-## Providers
+**How it decides:** Provider verdicts/severities are rolled up by consensus logic (see `core/verdict.py`) to produce a single overall verdict, severity, and summary. Individual provider behavior is defined in each provider module.
+
+## Provider matrix
 
 | Provider | Tool | Keyless? | Env var |
 |----------|------|----------|---------|
@@ -54,33 +84,52 @@ Vocabularies: `verdict` ∈ `benign|suspicious|malicious|unknown|error`; `severi
 | `virustotal_ip` | `check_ip` | no | `VT_API_KEY` |
 | `greynoise` | `check_ip` | no | `GREYNOISE_API_KEY` |
 | `shodan` | `check_ip` | no | `SHODAN_API_KEY` |
+| `ipinfo` | `check_ip` | yes | `IPINFO_TOKEN` (optional) |
+| `internetdb` | `check_ip` | yes | — |
+| `reverse_dns` | `check_ip` | yes | — |
+| `otx_ip` | `check_ip` | yes | — |
 | `urlscan` | `check_url` | yes (key optional) | `URLSCAN_API_KEY` (optional) |
 | `virustotal_url` | `check_url` | no | `VT_API_KEY` |
 | `nvd` | `lookup_cve` | yes (key optional) | `NVD_API_KEY` (optional) |
 | `mitre_cve` | `lookup_cve` | yes | — |
 | `osv` | `lookup_cve` | yes | — |
+| `epss` | `lookup_cve` | yes | — |
+| `cisa_kev` | `lookup_cve` | yes | — |
+| `circl` | `lookup_cve` | yes | — |
+| `rdap` | `check_domain` | yes | — |
+| `dns` | `check_domain` | yes | — |
+| `crtsh` | `check_domain` | yes | — |
+| `otx_domain` | `check_domain` | yes | — |
+| `virustotal_file` | `check_hash` | no | `VT_API_KEY` |
+| `otx_file` | `check_hash` | yes | — |
 
-Every keyed provider is optional: if its API key is unset, the provider is not queried and appears in the response's `skipped` list with the reason (`<ENV_VAR> not set`). `urlscan` and `nvd` are queried keyless even when their optional key is absent, so they never appear in `skipped`.
+Every keyed provider is optional: if its API key is unset, the provider is not queried and appears in the response's `skipped` list with reason `<ENV_VAR> not set`. Providers that accept optional keys (`urlscan`, `nvd`, `ipinfo`) are queried keyless when their key is absent, so they typically do not appear in `skipped`. Mock mode (`MOCK=1`) returns canned data and works with zero keys.
 
-## Setup
+## Quickstart
 
+### 1. Setup
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp .env.example .env   # optional: fill in only the keys you have
 ```
 
-API keys are read from the environment only (`.env` is loaded via python-dotenv if present) and are never logged.
-
-For keyless, offline testing use mock mode — no network, no keys:
-
+### 2. Run in mock mode (offline, no keys)
 ```bash
 MOCK=1 .venv/bin/python server.py
 ```
 
-## Add to OpenCode
+### 3. Run normally
+```bash
+.venv/bin/python server.py
+```
 
-Add this to your `opencode.json` / `opencode.jsonc` (a copy lives in `opencode.snippet.json`):
+API keys are read from the environment only (`.env` is loaded via python-dotenv if present) and are never logged.
+
+## Add to your agent (MCP)
+
+### OpenCode
+Add to `opencode.json` (a copy is in `opencode.snippet.json`):
 
 ```json
 {
@@ -97,7 +146,8 @@ Add this to your `opencode.json` / `opencode.jsonc` (a copy lives in `opencode.s
         "GREYNOISE_API_KEY": "{env:GREYNOISE_API_KEY}",
         "SHODAN_API_KEY": "{env:SHODAN_API_KEY}",
         "URLSCAN_API_KEY": "{env:URLSCAN_API_KEY}",
-        "NVD_API_KEY": "{env:NVD_API_KEY}"
+        "NVD_API_KEY": "{env:NVD_API_KEY}",
+        "IPINFO_TOKEN": "{env:IPINFO_TOKEN}"
       }
     }
   }
@@ -105,33 +155,51 @@ Add this to your `opencode.json` / `opencode.jsonc` (a copy lives in `opencode.s
 ```
 
 Notes:
-
-- `command` runs the **venv interpreter** (`.venv/bin/python`) with `server.py`, so the venv must already have `requirements.txt` installed. `cwd` is the server directory relative to where OpenCode is started.
-- The `{env:...}` placeholders are OpenCode's env-var expansion — unset keys expand to empty and those providers are simply skipped.
-- Optional inline-args alternative (no venv, deps resolved on the fly by `uv` or `pipx`):
-
+- `command` runs the **venv interpreter** (`.venv/bin/python`) with `server.py`; ensure the `.venv` has dependencies installed.
+- Unset keys expand to empty via `{env:...}` and those providers are skipped. `IPINFO_TOKEN`, `URLSCAN_API_KEY`, and `NVD_API_KEY` are **optional**.
+- **Alternative (inline deps):** `uv` or `pipx` can resolve deps on-the-fly:
   ```json
   "command": ["uv", "run", "--with", "fastmcp>=2.0", "--with", "httpx>=0.27", "--with", "python-dotenv>=1.0", "server.py"]
   ```
+  (`pipx run --with fastmcp,httpx,python-dotenv server.py` also works.)
+- **Agent-independent:** Speaks standard MCP over stdio — works with Claude, GPT, OpenCode, or any MCP client.
 
-  (`pipx run --with fastmcp,httpx,python-dotenv server.py` works the same way.)
+### Other agents
+For Claude Desktop, Cline, Continue, RooCode, etc., configure this MCP server as a local stdio command pointing to `.venv/bin/python` and `server.py` in this repo.
 
-- The server is **agent-independent**: it speaks standard MCP over stdio, so Claude, GPT, OpenCode, or any other MCP client can connect — nothing here is OpenCode-specific beyond the config block above.
+## Agent prompts / copy-paste examples
+
+Try these natural-language prompts with an MCP-enabled agent:
+
+- `"Check 45.124.15.34"`
+- `"Recon example.com"` (domain investigation)
+- `"Look up CVE-2021-44228"`
+- `"Check this sha256: d41d8cd98f00b204e9800998ecf8427e"`
+
+These map directly to the tools: `check_ip`, `check_domain`, `lookup_cve`, and `check_hash`.
 
 ## Verify locally
 
 ```bash
-MOCK=1 .venv/bin/python tests/smoke.py                 # stdio client: 3 tools + schema checks
-npx @modelcontextprotocol/inspector .venv/bin/python server.py   # interactive inspector
-.venv/bin/pytest -q                                    # unit tests (network tests deselected)
-.venv/bin/pytest -q -m network -o addopts=""           # live keyless CVE lookup (needs internet)
+# Unit tests (offline, network tests deselected by default)
+.venv/bin/pytest -q
+
+# Smoke test — 5 tools against a stdio client (mock mode)
+MOCK=1 .venv/bin/python tests/smoke.py
+
+# Interactive MCP inspector (browser UI)
+npx @modelcontextprotocol/inspector .venv/bin/python server.py
+
+# Live network tests (require internet; always override addopts)
+.venv/bin/pytest -q -m network -o addopts=""
 ```
 
-## Agent usage examples
+## FAQ
 
-Once connected, just ask in chat:
+**Why is `skipped` empty?** Your `.env` is loaded (or keys are exported), or you are in `MOCK=1` mode. `skipped` only lists keyed providers whose env var is unset — keyless providers always run.
 
-- "Check 8.8.8.8 with the security tools."
-- "Is https://example.com safe?"
-- "Look up CVE-2021-44228."
-- "Check 1.1.1.1 with only greynoise and shodan."
+**Why are some providers in `skipped`?** The key for that provider is not set. That is expected and safe: one provider's absence never fails the call. Every key is listed in the [provider matrix](#provider-matrix).
+
+**Can it attack or scan anything?** No. Every request is a passive HTTP GET against a third-party lookup API. There is no active scanning, no OS fingerprinting, and no mutating API call anywhere in the tree.
+
+**Rate limited?** Providers are internally rate-limited with a token bucket; a `429` surfaces as `RateLimited` and is retried once before being reported as a failed provider result.

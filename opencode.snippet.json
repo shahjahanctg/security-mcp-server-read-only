@@ -12,7 +12,8 @@
         "GREYNOISE_API_KEY": "{env:GREYNOISE_API_KEY}",
         "SHODAN_API_KEY": "{env:SHODAN_API_KEY}",
         "URLSCAN_API_KEY": "{env:URLSCAN_API_KEY}",
-        "NVD_API_KEY": "{env:NVD_API_KEY}"
+        "NVD_API_KEY": "{env:NVD_API_KEY}",
+        "IPINFO_TOKEN": "{env:IPINFO_TOKEN}"
       }
     }
   }

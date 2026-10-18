@@ -59,3 +59,27 @@ def test_live_cve_log4shell_keyless(monkeypatch):
     assert results["mitre_cve"]["severity"] == "unknown"
     assert response["severity"] == "critical"
     assert response["verdict"] == "malicious"
+
+
+@pytest.mark.network
+def test_live_domain_example_com_keyless(monkeypatch):
+    monkeypatch.delenv("MOCK", raising=False)
+
+    try:
+        response = asyncio.run(
+            investigate(
+                "domain", "example.com", ["rdap", "dns", "crtsh", "otx_domain"]
+            )
+        )
+    except httpx.HTTPError:
+        pytest.skip("network unavailable")
+
+    if all(not r["ok"] for r in response["results"]):
+        errors = " ".join(r["error"] or "" for r in response["results"])
+        if _is_network_unavailable(errors):
+            pytest.skip("network unavailable")
+
+    assert response["type"] == "domain"
+    assert response["input"] == "example.com"
+    assert sum(1 for r in response["results"] if r["ok"]) >= 2
+    assert response["verdict"] in ("benign", "suspicious", "malicious", "unknown")
