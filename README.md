@@ -18,12 +18,12 @@ A read-only, passive security investigation MCP server exposing exactly five too
 - **Reverse DNS**: Resolve PTR records for IP addresses.
 - **URL reputation**: Check URLs against multiple reputation providers (SSRF-guarded to prevent local/private targets).
 - **CVE intelligence**: Get CVE descriptions, severity, exploit probability (EPSS), and CISA Known Exploited Vulnerabilities (KEV) status.
-- **File hash reputation**: Look up SHA256 hashes against reputation providers.
+- **File hash reputation**: Look up MD5/SHA1/SHA256 hashes against reputation providers.
 - **Transparent consensus**: Every response includes `verdict`, `severity`, `queried`, `skipped`, and per-provider results with retrieval timestamps.
 
 ## Read-only guarantee
 
-All five tools perform strict lookups. Every outbound call is an **HTTP GET only** — there are **zero POST, PUT, PATCH, DELETE**, or any other mutating API calls anywhere in the codebase. 
+All five tools perform strict lookups. Every outbound call is an **HTTP GET only** — there are **zero POST, PUT, PATCH, DELETE**, or any other mutating API calls anywhere in the codebase.
 - No `requests` dependency; only `httpx` is used for HTTP calls.
 - No scan submission, no task/queue creation, no writes.
 - **Passive only — no active scanning, no OS fingerprinting.**
@@ -38,7 +38,7 @@ All five tools perform strict lookups. Every outbound call is an **HTTP GET only
 | `check_url(url, providers=None)` | URL reputation lookups (SSRF-guarded). Rejects localhost, `.local`, `.internal`, private/loopback/link-local IPs. |
 | `lookup_cve(cve_id, providers=None)` | CVE severity, description, EPSS exploit probability, and CISA KEV status. Normalizes to `CVE-YYYY-NNNN+`. |
 | `check_domain(domain, providers=None)` | Domain intelligence: RDAP registration, DNS records, subdomains via crt.sh CT logs, and OTX passive signals. |
-| `check_hash(file_hash, providers=None)` | File hash reputation lookup (SHA256). |
+| `check_hash(file_hash, providers=None)` | File hash reputation lookup (MD5, SHA1, or SHA256). |
 
 `providers` is an optional allow-list of provider names; omit it to query every available provider for that tool.
 
@@ -174,9 +174,10 @@ Try these natural-language prompts with an MCP-enabled agent:
 - `"Check 45.124.15.34"`
 - `"Recon example.com"` (domain investigation)
 - `"Look up CVE-2021-44228"`
-- `"Check this sha256: d41d8cd98f00b204e9800998ecf8427e"`
+- `"Check this sha256: 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"`
+- `"Is https://example.com safe?"` (URL reputation)
 
-These map directly to the tools: `check_ip`, `check_domain`, `lookup_cve`, and `check_hash`.
+These map directly to the tools: `check_ip`, `check_domain`, `lookup_cve`, `check_hash`, and `check_url`.
 
 ## Verify locally
 
@@ -202,4 +203,4 @@ npx @modelcontextprotocol/inspector .venv/bin/python server.py
 
 **Can it attack or scan anything?** No. Every request is a passive HTTP GET against a third-party lookup API. There is no active scanning, no OS fingerprinting, and no mutating API call anywhere in the tree.
 
-**Rate limited?** Providers are internally rate-limited with a token bucket; a `429` surfaces as `RateLimited` and is retried once before being reported as a failed provider result.
+**Rate limited?** Providers are internally rate-limited with a token bucket; a `429` raises `RateLimited` (distinct from a failed provider result). The server retries once via its limiter, and if still limited it returns a failed provider result with `error: "rate_limited"` — it never fails the whole call.
